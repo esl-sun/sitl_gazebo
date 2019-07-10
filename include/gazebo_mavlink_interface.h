@@ -57,6 +57,7 @@
 #include <common.h>
 #include <CommandMotorSpeed.pb.h>
 #include <MotorSpeed.pb.h>
+#include <CommandMotorThrottle.pb.h>
 #include <Imu.pb.h>
 #include <OpticalFlow.pb.h>
 #include <Range.pb.h>
@@ -86,6 +87,7 @@ static constexpr size_t MAX_TXQ_SIZE = 1000;
 namespace gazebo {
 
 typedef const boost::shared_ptr<const mav_msgs::msgs::CommandMotorSpeed> CommandMotorSpeedPtr;
+typedef const boost::shared_ptr<const mav_msgs::msgs::CommandMotorThrottle> CommandMotorThrottlePtr;
 typedef const boost::shared_ptr<const nav_msgs::msgs::Odometry> OdomPtr;
 typedef const boost::shared_ptr<const sensor_msgs::msgs::Groundtruth> GtPtr;
 typedef const boost::shared_ptr<const sensor_msgs::msgs::Imu> ImuPtr;
@@ -103,6 +105,7 @@ static const std::string kDefaultNamespace = "";
 // This just proxies the motor commands from command/motor_speed to the single motors via internal
 // ConsPtr passing, such that the original commands don't have to go n_motors-times over the wire.
 static const std::string kDefaultMotorVelocityReferencePubTopic = "/gazebo/command/motor_speed";
+static const std::string kDefaultMotorReferencePubTopic = "/command/motor";
 
 static const std::string kDefaultImuTopic = "/imu";
 static const std::string kDefaultLidarTopic = "/link/lidar";
@@ -126,9 +129,11 @@ class GazeboMavlinkInterface : public ModelPlugin {
 public:
   GazeboMavlinkInterface() : ModelPlugin(),
     received_first_actuator_(false),
+    use_motor_velocity(true),
     namespace_(kDefaultNamespace),
     protocol_version_(2.0),
     motor_velocity_reference_pub_topic_(kDefaultMotorVelocityReferencePubTopic),
+    motor_reference_pub_topic_(kDefaultMotorReferencePubTopic),
     use_propeller_pid_(false),
     use_elevator_pid_(false),
     use_left_elevon_pid_(false),
@@ -162,6 +167,7 @@ public:
     groundtruth_lat_rad(0.0),
     groundtruth_lon_rad(0.0),
     groundtruth_altitude(0.0),
+    has_noise(true),
     mavlink_udp_port_(kDefaultMavlinkUdpPort),
     mavlink_tcp_port_(kDefaultMavlinkTcpPort),
     simulator_socket_fd_(0),
@@ -175,6 +181,7 @@ public:
     local_sdk_addr_ {},
     qgc_socket_fd_(0),
     sdk_socket_fd_(0),
+    enable_sim_(true),
     serial_enabled_(false),
     tx_q {},
     rx_buf {},
@@ -198,17 +205,21 @@ protected:
 
 private:
   bool received_first_actuator_;
+  bool use_motor_velocity;
+  bool has_noise;
   Eigen::VectorXd input_reference_;
 
   float protocol_version_;
 
   std::string namespace_;
   std::string motor_velocity_reference_pub_topic_;
+  std::string motor_reference_pub_topic_;
   std::string mavlink_control_sub_topic_;
   std::string link_name_;
 
   transport::NodePtr node_handle_;
   transport::PublisherPtr motor_velocity_reference_pub_;
+  transport::PublisherPtr motor_reference_pub_;
   transport::SubscriberPtr mav_control_sub_;
 
   physics::ModelPtr model_;
@@ -260,8 +271,11 @@ private:
   void pollFromQgcAndSdk();
   void SendSensorMessages();
   void handle_control(double _dt);
+  void handle_actuators(double dt);
   bool IsRunning();
   void onSigInt();
+
+  bool enable_sim_;
 
   // Serial interface
   void open();

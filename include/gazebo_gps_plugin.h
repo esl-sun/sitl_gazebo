@@ -93,13 +93,17 @@ private:
   // PX4_HOME_LAT, PX4_HOME_LON, and PX4_HOME_ALT
 
   // Zurich Irchel Park
-  double lat_home = 47.397742 * M_PI / 180.0;  // rad
-  double lon_home = 8.545594 * M_PI / 180.0;   // rad
-  double alt_home = 488.0;                     // meters
+  // double lat_home = 47.397742 * M_PI / 180.0;  // rad
+  // double lon_home = 8.545594 * M_PI / 180.0;   // rad
+  // double alt_home = 488.0;                     // meters
   // Seattle downtown (15 deg declination): 47.592182, -122.316031
   // static const double lat_home = 47.592182 * M_PI / 180;    // rad
   // static const double lon_home = -122.316031 * M_PI / 180;  // rad
   // static const double alt_home = 86.0;                      // meters
+  // Helderberg Radio Flyers (HRF)
+  double lat_home = -34.046667 * M_PI / 180.0;  // rad
+  double lon_home = 18.740311 * M_PI / 180.0;   // rad
+  double alt_home = 8.0;                        // meters
 
   static constexpr const double earth_radius = 6353000.0;      // meters
 

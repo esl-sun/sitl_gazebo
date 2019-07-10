@@ -99,6 +99,12 @@ void MagnetometerPlugin::getSdfParams(sdf::ElementPtr sdf)
     gzwarn << "[gazebo_magnetometer_plugin] Using default magnetometer topic " << mag_topic_ << "\n";
   }
 
+  if (sdf->HasElement("magNoise")) {
+    has_noise = sdf->GetElement("magNoise")->Get<bool>();
+  } else {
+    has_noise = true;
+  }
+
   gt_sub_topic_ = "/groundtruth";
 }
 
@@ -184,7 +190,9 @@ void MagnetometerPlugin::OnUpdate(const common::UpdateInfo&)
 
     // Magnetometer noise
     Eigen::Vector3d magnetic_field_I(X, Y, Z);
-    addNoise(&magnetic_field_I, dt);
+    if(has_noise) {
+      addNoise(&magnetic_field_I, dt);
+    }
 
     // Fill magnetometer messgae
     mag_message_.set_time_usec(current_time.Double() * 1e6);

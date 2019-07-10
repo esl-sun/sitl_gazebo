@@ -35,6 +35,9 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
   model_ = _model;
   world_ = model_->GetWorld();
 
+  // TODO: Change
+  enable_sim_ = true;
+
   namespace_.clear();
   if (_sdf->HasElement("robotNamespace")) {
     namespace_ = _sdf->GetElement("robotNamespace")->Get<std::string>();
@@ -49,8 +52,21 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
   node_handle_ = transport::NodePtr(new transport::Node());
   node_handle_->Init(namespace_);
 
-  getSdfParam<std::string>(_sdf, "motorSpeedCommandPubTopic", motor_velocity_reference_pub_topic_,
-      motor_velocity_reference_pub_topic_);
+  if(_sdf->HasElement("noise")) {
+    has_noise = _sdf->GetElement("noise")->Get<bool>();
+  } else {
+    has_noise = true;
+  }
+
+  if (_sdf->HasElement("motorSpeedCommandPubTopic")) {
+    getSdfParam<std::string>(_sdf, "motorSpeedCommandPubTopic", motor_velocity_reference_pub_topic_,
+        motor_velocity_reference_pub_topic_);
+    use_motor_velocity = true;
+  } else {
+    getSdfParam<std::string>(_sdf, "motorCommandPubTopic", motor_reference_pub_topic_,
+        motor_reference_pub_topic_);
+    use_motor_velocity = false;
+  }
   getSdfParam<std::string>(_sdf, "imuSubTopic", imu_sub_topic_, imu_sub_topic_);
   getSdfParam<std::string>(_sdf, "gpsSubTopic", gps_sub_topic_, gps_sub_topic_);
   getSdfParam<std::string>(_sdf, "visionSubTopic", vision_sub_topic_, vision_sub_topic_);
@@ -280,240 +296,246 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
   mag_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + mag_sub_topic_, &GazeboMavlinkInterface::MagnetometerCallback, this);
   baro_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + baro_sub_topic_, &GazeboMavlinkInterface::BarometerCallback, this);
 
-  // Publish gazebo's motor_speed message
-  motor_velocity_reference_pub_ = node_handle_->Advertise<mav_msgs::msgs::CommandMotorSpeed>("~/" + model_->GetName() + motor_velocity_reference_pub_topic_, 1);
+  if(enable_sim_) {
+    // Publish gazebo's motor_speed message
+    if (use_motor_velocity) {
+      motor_velocity_reference_pub_ = node_handle_->Advertise<mav_msgs::msgs::CommandMotorSpeed>("~/" + model_->GetName() + motor_velocity_reference_pub_topic_, 1);
+    } else {
+      motor_reference_pub_ = node_handle_->Advertise<mav_msgs::msgs::CommandMotorThrottle>("~/" + model_->GetName() + motor_reference_pub_topic_, 1);
+    }
 
-#if GAZEBO_MAJOR_VERSION >= 9
-  last_time_ = world_->SimTime();
-  last_imu_time_ = world_->SimTime();
-  gravity_W_ = world_->Gravity();
-#else
-  last_time_ = world_->GetSimTime();
-  last_imu_time_ = world_->GetSimTime();
-  gravity_W_ = ignitionFromGazeboMath(world_->GetPhysicsEngine()->GetGravity());
-#endif
+  #if GAZEBO_MAJOR_VERSION >= 9
+    last_time_ = world_->SimTime();
+    last_imu_time_ = world_->SimTime();
+    gravity_W_ = world_->Gravity();
+  #else
+    last_time_ = world_->GetSimTime();
+    last_imu_time_ = world_->GetSimTime();
+    gravity_W_ = ignitionFromGazeboMath(world_->GetPhysicsEngine()->GetGravity());
+  #endif
 
-  // This doesn't seem to be used anywhere but we leave it here
-  // for potential compatibility
-  if (_sdf->HasElement("imu_rate")) {
-    imu_update_interval_ = 1 / _sdf->GetElement("imu_rate")->Get<int>();
-  }
+    // This doesn't seem to be used anywhere but we leave it here
+    // for potential compatibility
+    if (_sdf->HasElement("imu_rate")) {
+      imu_update_interval_ = 1 / _sdf->GetElement("imu_rate")->Get<int>();
+    }
 
-  mavlink_addr_ = htonl(INADDR_ANY);
-  if (_sdf->HasElement("mavlink_addr")) {
-    std::string mavlink_addr_str = _sdf->GetElement("mavlink_addr")->Get<std::string>();
-    if (mavlink_addr_str != "INADDR_ANY") {
-      mavlink_addr_ = inet_addr(mavlink_addr_str.c_str());
-      if (mavlink_addr_ == INADDR_NONE) {
-        gzerr << "Invalid mavlink_addr: " << mavlink_addr_str << ", aborting\n";
-        abort();
+    mavlink_addr_ = htonl(INADDR_ANY);
+    if (_sdf->HasElement("mavlink_addr")) {
+      std::string mavlink_addr_str = _sdf->GetElement("mavlink_addr")->Get<std::string>();
+      if (mavlink_addr_str != "INADDR_ANY") {
+        mavlink_addr_ = inet_addr(mavlink_addr_str.c_str());
+        if (mavlink_addr_ == INADDR_NONE) {
+          gzerr << "Invalid mavlink_addr: " << mavlink_addr_str << ", aborting\n";
+          abort();
+        }
       }
     }
-  }
 
-#if GAZEBO_MAJOR_VERSION >= 9
-  auto worldName = world_->Name();
-#else
-  auto worldName = world_->GetName();
-#endif
+  #if GAZEBO_MAJOR_VERSION >= 9
+    auto worldName = world_->Name();
+  #else
+    auto worldName = world_->GetName();
+  #endif
 
-  if (_sdf->HasElement("mavlink_udp_port")) {
-    mavlink_udp_port_ = _sdf->GetElement("mavlink_udp_port")->Get<int>();
-  }
-  model_param(worldName, model_->GetName(), "mavlink_udp_port", mavlink_udp_port_);
+    if (_sdf->HasElement("mavlink_udp_port")) {
+      mavlink_udp_port_ = _sdf->GetElement("mavlink_udp_port")->Get<int>();
+    }
+    model_param(worldName, model_->GetName(), "mavlink_udp_port", mavlink_udp_port_);
 
-  if (_sdf->HasElement("mavlink_tcp_port")) {
-    mavlink_tcp_port_ = _sdf->GetElement("mavlink_tcp_port")->Get<int>();
-  }
-  model_param(worldName, model_->GetName(), "mavlink_tcp_port", mavlink_tcp_port_);
+    if (_sdf->HasElement("mavlink_tcp_port")) {
+      mavlink_tcp_port_ = _sdf->GetElement("mavlink_tcp_port")->Get<int>();
+    }
+    model_param(worldName, model_->GetName(), "mavlink_tcp_port", mavlink_tcp_port_);
 
-  local_qgc_addr_.sin_port = htonl(INADDR_ANY);
-  if (_sdf->HasElement("qgc_addr")) {
-    std::string qgc_addr = _sdf->GetElement("qgc_addr")->Get<std::string>();
-    if (qgc_addr != "INADDR_ANY") {
-      local_qgc_addr_.sin_port = inet_addr(qgc_addr.c_str());
-      if (local_qgc_addr_.sin_port == INADDR_NONE) {
-        gzerr << "Invalid qgc_addr: " << qgc_addr << ", aborting\n";
-        abort();
+    local_qgc_addr_.sin_port = htonl(INADDR_ANY);
+    if (_sdf->HasElement("qgc_addr")) {
+      std::string qgc_addr = _sdf->GetElement("qgc_addr")->Get<std::string>();
+      if (qgc_addr != "INADDR_ANY") {
+        local_qgc_addr_.sin_port = inet_addr(qgc_addr.c_str());
+        if (local_qgc_addr_.sin_port == INADDR_NONE) {
+          gzerr << "Invalid qgc_addr: " << qgc_addr << ", aborting\n";
+          abort();
+        }
       }
     }
-  }
-  if (_sdf->HasElement("qgc_udp_port")) {
-    qgc_udp_port_ = _sdf->GetElement("qgc_udp_port")->Get<int>();
-  }
+    if (_sdf->HasElement("qgc_udp_port")) {
+      qgc_udp_port_ = _sdf->GetElement("qgc_udp_port")->Get<int>();
+    }
 
-  local_sdk_addr_.sin_port = htonl(INADDR_ANY);
-  if (_sdf->HasElement("sdk_addr")) {
-    std::string sdk_addr = _sdf->GetElement("sdk_addr")->Get<std::string>();
-    if (sdk_addr != "INADDR_ANY") {
-      local_sdk_addr_.sin_port = inet_addr(sdk_addr.c_str());
-      if (local_sdk_addr_.sin_port == INADDR_NONE) {
-        gzerr << "Invalid sdk_addr: " << sdk_addr << ", aborting\n";
-        abort();
+    local_sdk_addr_.sin_port = htonl(INADDR_ANY);
+    if (_sdf->HasElement("sdk_addr")) {
+      std::string sdk_addr = _sdf->GetElement("sdk_addr")->Get<std::string>();
+      if (sdk_addr != "INADDR_ANY") {
+        local_sdk_addr_.sin_port = inet_addr(sdk_addr.c_str());
+        if (local_sdk_addr_.sin_port == INADDR_NONE) {
+          gzerr << "Invalid sdk_addr: " << sdk_addr << ", aborting\n";
+          abort();
+        }
       }
     }
-  }
-  if (_sdf->HasElement("sdk_udp_port")) {
-    sdk_udp_port_ = _sdf->GetElement("sdk_udp_port")->Get<int>();
-  }
-
-  if (hil_mode_) {
-
-    local_qgc_addr_.sin_family = AF_INET;
-    local_qgc_addr_.sin_port = htons(0);
-    local_qgc_addr_len_ = sizeof(local_qgc_addr_);
-
-    remote_qgc_addr_.sin_family = AF_INET;
-    remote_qgc_addr_.sin_port = htons(qgc_udp_port_);
-    remote_qgc_addr_len_ = sizeof(remote_qgc_addr_);
-
-    local_sdk_addr_.sin_family = AF_INET;
-    local_sdk_addr_.sin_port = htons(0);
-    local_sdk_addr_len_ = sizeof(local_sdk_addr_);
-
-    remote_sdk_addr_.sin_family = AF_INET;
-    remote_sdk_addr_.sin_port = htons(sdk_udp_port_);
-    remote_sdk_addr_len_ = sizeof(remote_sdk_addr_);
-
-    if ((qgc_socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-      gzerr << "Creating QGC UDP socket failed: " << strerror(errno) << ", aborting\n";
-      abort();
+    if (_sdf->HasElement("sdk_udp_port")) {
+      sdk_udp_port_ = _sdf->GetElement("sdk_udp_port")->Get<int>();
     }
 
-    if (bind(qgc_socket_fd_, (struct sockaddr *)&local_qgc_addr_, local_qgc_addr_len_) < 0) {
-      gzerr << "QGC UDP bind failed: " << strerror(errno) << ", aborting\n";
-      abort();
-    }
+    if (hil_mode_) {
 
-    if ((sdk_socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-      gzerr << "Creating SDK UDP socket failed: " << strerror(errno) << ", aborting\n";
-      abort();
-    }
+      local_qgc_addr_.sin_family = AF_INET;
+      local_qgc_addr_.sin_port = htons(0);
+      local_qgc_addr_len_ = sizeof(local_qgc_addr_);
 
-    if (bind(sdk_socket_fd_, (struct sockaddr *)&local_sdk_addr_, local_sdk_addr_len_) < 0) {
-      gzerr << "SDK UDP bind failed: " << strerror(errno) << ", aborting\n";
-      abort();
-    }
+      remote_qgc_addr_.sin_family = AF_INET;
+      remote_qgc_addr_.sin_port = htons(qgc_udp_port_);
+      remote_qgc_addr_len_ = sizeof(remote_qgc_addr_);
 
-  }
+      local_sdk_addr_.sin_family = AF_INET;
+      local_sdk_addr_.sin_port = htons(0);
+      local_sdk_addr_len_ = sizeof(local_sdk_addr_);
 
-  if (serial_enabled_) {
-    // Set up serial interface
-    if(_sdf->HasElement("serialDevice"))
-    {
-      device_ = _sdf->GetElement("serialDevice")->Get<std::string>();
-    }
+      remote_sdk_addr_.sin_family = AF_INET;
+      remote_sdk_addr_.sin_port = htons(sdk_udp_port_);
+      remote_sdk_addr_len_ = sizeof(remote_sdk_addr_);
 
-    if (_sdf->HasElement("baudRate")) {
-      baudrate_ = _sdf->GetElement("baudRate")->Get<int>();
-    }
-    io_service.post(std::bind(&GazeboMavlinkInterface::do_read, this));
-
-    // run io_service for async io
-    io_thread = std::thread([this] () {
-      io_service.run();
-    });
-    open();
-
-  } else {
-    memset((char *)&remote_simulator_addr_, 0, sizeof(remote_simulator_addr_));
-    remote_simulator_addr_.sin_family = AF_INET;
-    remote_simulator_addr_len_ = sizeof(remote_simulator_addr_);
-
-    memset((char *)&local_simulator_addr_, 0, sizeof(local_simulator_addr_));
-    local_simulator_addr_.sin_family = AF_INET;
-    local_simulator_addr_len_ = sizeof(local_simulator_addr_);
-
-    if (use_tcp_) {
-
-      local_simulator_addr_.sin_addr.s_addr = htonl(mavlink_addr_);
-      local_simulator_addr_.sin_port = htons(mavlink_tcp_port_);
-
-      if ((simulator_socket_fd_ = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        gzerr << "Creating TCP socket failed: " << strerror(errno) << ", aborting\n";
+      if ((qgc_socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        gzerr << "Creating QGC UDP socket failed: " << strerror(errno) << ", aborting\n";
         abort();
       }
 
-      int yes = 1;
-      int result = setsockopt(simulator_socket_fd_, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
-      if (result != 0) {
-        gzerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
+      if (bind(qgc_socket_fd_, (struct sockaddr *)&local_qgc_addr_, local_qgc_addr_len_) < 0) {
+        gzerr << "QGC UDP bind failed: " << strerror(errno) << ", aborting\n";
         abort();
       }
 
-      struct linger nolinger {};
-      nolinger.l_onoff = 1;
-      nolinger.l_linger = 0;
-
-      result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_LINGER, &nolinger, sizeof(nolinger));
-      if (result != 0) {
-        gzerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
+      if ((sdk_socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        gzerr << "Creating SDK UDP socket failed: " << strerror(errno) << ", aborting\n";
         abort();
       }
 
-      if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
-        gzerr << "bind failed: " << strerror(errno) << ", aborting\n";
+      if (bind(sdk_socket_fd_, (struct sockaddr *)&local_sdk_addr_, local_sdk_addr_len_) < 0) {
+        gzerr << "SDK UDP bind failed: " << strerror(errno) << ", aborting\n";
         abort();
       }
 
-      errno = 0;
-      if (listen(simulator_socket_fd_, 0) < 0) {
-        gzerr << "listen failed: " << strerror(errno) << ", aborting\n";
-        abort();
+    }
+
+    if (serial_enabled_) {
+      // Set up serial interface
+      if(_sdf->HasElement("serialDevice"))
+      {
+        device_ = _sdf->GetElement("serialDevice")->Get<std::string>();
       }
 
-      simulator_tcp_client_fd_ = accept(simulator_socket_fd_, (struct sockaddr *)&remote_simulator_addr_, &remote_simulator_addr_len_);
+      if (_sdf->HasElement("baudRate")) {
+        baudrate_ = _sdf->GetElement("baudRate")->Get<int>();
+      }
+      io_service.post(std::bind(&GazeboMavlinkInterface::do_read, this));
+
+      // run io_service for async io
+      io_thread = std::thread([this] () {
+        io_service.run();
+      });
+      open();
 
     } else {
-      remote_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
-      remote_simulator_addr_.sin_port = htons(mavlink_udp_port_);
+      memset((char *)&remote_simulator_addr_, 0, sizeof(remote_simulator_addr_));
+      remote_simulator_addr_.sin_family = AF_INET;
+      remote_simulator_addr_len_ = sizeof(remote_simulator_addr_);
 
-      local_simulator_addr_.sin_addr.s_addr = htonl(INADDR_ANY);
-      local_simulator_addr_.sin_port = htons(0);
+      memset((char *)&local_simulator_addr_, 0, sizeof(local_simulator_addr_));
+      local_simulator_addr_.sin_family = AF_INET;
+      local_simulator_addr_len_ = sizeof(local_simulator_addr_);
 
-      if ((simulator_socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        gzerr << "Creating UDP socket failed: " << strerror(errno) << ", aborting\n";
-        abort();
-      }
+      if (use_tcp_) {
 
-      if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
-        gzerr << "bind failed: " << strerror(errno) << ", aborting\n";
-        abort();
+        local_simulator_addr_.sin_addr.s_addr = htonl(mavlink_addr_);
+        local_simulator_addr_.sin_port = htons(mavlink_tcp_port_);
+
+        if ((simulator_socket_fd_ = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+          gzerr << "Creating TCP socket failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+
+        int yes = 1;
+        int result = setsockopt(simulator_socket_fd_, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
+        if (result != 0) {
+          gzerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+
+        struct linger nolinger {};
+        nolinger.l_onoff = 1;
+        nolinger.l_linger = 0;
+
+        result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_LINGER, &nolinger, sizeof(nolinger));
+        if (result != 0) {
+          gzerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+
+        if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
+          gzerr << "bind failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+
+        errno = 0;
+        if (listen(simulator_socket_fd_, 0) < 0) {
+          gzerr << "listen failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+
+        simulator_tcp_client_fd_ = accept(simulator_socket_fd_, (struct sockaddr *)&remote_simulator_addr_, &remote_simulator_addr_len_);
+
+      } else {
+        remote_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
+        remote_simulator_addr_.sin_port = htons(mavlink_udp_port_);
+
+        local_simulator_addr_.sin_addr.s_addr = htonl(INADDR_ANY);
+        local_simulator_addr_.sin_port = htons(0);
+
+        if ((simulator_socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+          gzerr << "Creating UDP socket failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+
+        if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
+          gzerr << "bind failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
       }
     }
-  }
 
-  if(_sdf->HasElement("vehicle_is_tailsitter"))
-  {
-    vehicle_is_tailsitter_ = _sdf->GetElement("vehicle_is_tailsitter")->Get<bool>();
-  }
+    if(_sdf->HasElement("vehicle_is_tailsitter"))
+    {
+      vehicle_is_tailsitter_ = _sdf->GetElement("vehicle_is_tailsitter")->Get<bool>();
+    }
 
-  if(_sdf->HasElement("send_vision_estimation"))
-  {
-    send_vision_estimation_ = _sdf->GetElement("send_vision_estimation")->Get<bool>();
-  }
+    if(_sdf->HasElement("send_vision_estimation"))
+    {
+      send_vision_estimation_ = _sdf->GetElement("send_vision_estimation")->Get<bool>();
+    }
 
-  if(_sdf->HasElement("send_odometry"))
-  {
-    send_odometry_ = _sdf->GetElement("send_odometry")->Get<bool>();
-  }
+    if(_sdf->HasElement("send_odometry"))
+    {
+      send_odometry_ = _sdf->GetElement("send_odometry")->Get<bool>();
+    }
 
-  mavlink_status_t* chan_state = mavlink_get_channel_status(MAVLINK_COMM_0);
+    mavlink_status_t* chan_state = mavlink_get_channel_status(MAVLINK_COMM_0);
 
-  // set the Mavlink protocol version to use on the link
-  if (protocol_version_ == 2.0) {
-    chan_state->flags &= ~(MAVLINK_STATUS_FLAG_OUT_MAVLINK1);
-    gzmsg << "Using MAVLink protocol v2.0\n";
-  }
-  else if (protocol_version_ == 1.0) {
-    chan_state->flags |= MAVLINK_STATUS_FLAG_OUT_MAVLINK1;
-    gzmsg << "Using MAVLink protocol v1.0\n";
-  }
-  else {
-    gzerr << "Unkown protocol version! Using v" << protocol_version_ << "by default \n";
-  }
+    // set the Mavlink protocol version to use on the link
+    if (protocol_version_ == 2.0) {
+      chan_state->flags &= ~(MAVLINK_STATUS_FLAG_OUT_MAVLINK1);
+      gzmsg << "Using MAVLink protocol v2.0\n";
+    }
+    else if (protocol_version_ == 1.0) {
+      chan_state->flags |= MAVLINK_STATUS_FLAG_OUT_MAVLINK1;
+      gzmsg << "Using MAVLink protocol v1.0\n";
+    }
+    else {
+      gzerr << "Unkown protocol version! Using v" << protocol_version_ << "by default \n";
+    }
 
-  standard_normal_distribution_ = std::normal_distribution<float>(0.0f, 1.0f);
+    standard_normal_distribution_ = std::normal_distribution<float>(0.0f, 1.0f);
+  }
 }
 
 // This gets called by the world update start event.
@@ -536,31 +558,37 @@ void GazeboMavlinkInterface::OnUpdate(const common::UpdateInfo&  /*_info*/) {
 #endif
   double dt = (current_time - last_time_).Double();
 
-  SendSensorMessages();
+  if(enable_sim_) {
+    SendSensorMessages();
 
-  if (hil_mode_) {
-    pollFromQgcAndSdk();
-  } else {
-    pollForMAVLinkMessages();
-  }
-
-  handle_control(dt);
-
-  if (received_first_actuator_) {
-    mav_msgs::msgs::CommandMotorSpeed turning_velocities_msg;
-
-    for (int i = 0; i < input_reference_.size(); i++) {
-      if (last_actuator_time_ == 0 || (current_time - last_actuator_time_).Double() > 0.2) {
-        turning_velocities_msg.add_motor_speed(0);
-      } else {
-        turning_velocities_msg.add_motor_speed(input_reference_[i]);
-      }
+    if (hil_mode_) {
+      pollFromQgcAndSdk();
+    } else {
+      pollForMAVLinkMessages();
     }
-    // TODO Add timestamp and Header
-    // turning_velocities_msg->header.stamp.sec = current_time.sec;
-    // turning_velocities_msg->header.stamp.nsec = current_time.nsec;
 
-    motor_velocity_reference_pub_->Publish(turning_velocities_msg);
+    if(use_motor_velocity) {
+      handle_control(dt);
+
+      if (received_first_actuator_) {
+        mav_msgs::msgs::CommandMotorSpeed turning_velocities_msg;
+
+        for (int i = 0; i < input_reference_.size(); i++) {
+          if (last_actuator_time_ == 0 || (current_time - last_actuator_time_).Double() > 0.2) {
+            turning_velocities_msg.add_motor_speed(0);
+          } else {
+            turning_velocities_msg.add_motor_speed(input_reference_[i]);
+          }
+        }
+        // TODO Add timestamp and Header
+        // turning_velocities_msg->header.stamp.sec = current_time.sec;
+        // turning_velocities_msg->header.stamp.nsec = current_time.nsec;
+
+        motor_velocity_reference_pub_->Publish(turning_velocities_msg);
+      }
+    } else {
+      handle_actuators(dt);
+    }
   }
 
   last_time_ = current_time;
@@ -733,7 +761,10 @@ void GazeboMavlinkInterface::SendSensorMessages()
     // Let's use a rough guess of 0.05 hPa as the standard devitiation which roughly yields
     // about +/- 1 m/s noise.
     const float diff_pressure_stddev = 0.05f;
-    const float diff_pressure_noise = standard_normal_distribution_(random_generator_) * diff_pressure_stddev;
+    float diff_pressure_noise = standard_normal_distribution_(random_generator_) * diff_pressure_stddev;
+    if(!has_noise) {
+      diff_pressure_noise = 0.0f;
+    }
 
     // calculate differential pressure in hPa
     // if vehicle is a tailsitter the airspeed axis is different (z points from nose to tail)
@@ -1029,7 +1060,7 @@ void GazeboMavlinkInterface::VisionCallback(OdomPtr& odom_message) {
         size_t index = 6 * x + y;
 
         odom.pose_covariance[count++] = odom_message->pose_covariance().data()[index];
-        odom.velocity_covariance[count++] = odom_message->velocity_covariance().data()[index];
+        odom.twist_covariance[count++] = odom_message->velocity_covariance().data()[index];
       }
     }
 
@@ -1209,11 +1240,15 @@ void GazeboMavlinkInterface::handle_message(mavlink_message_t *msg, bool &receiv
     // set rotor speeds, controller targets
     input_reference_.resize(n_out_max);
     for (int i = 0; i < input_reference_.size(); i++) {
-      if (armed) {
-        input_reference_[i] = (controls.controls[input_index_[i]] + input_offset_[i])
-            * input_scaling_[i] + zero_position_armed_[i];
+      if(use_motor_velocity) {
+        if (armed) {
+          input_reference_[i] = (controls.controls[input_index_[i]] + input_offset_[i])
+              * input_scaling_[i] + zero_position_armed_[i];
+        } else {
+          input_reference_[i] = zero_position_disarmed_[i];
+        }
       } else {
-        input_reference_[i] = zero_position_disarmed_[i];
+        input_reference_[i] = controls.controls[input_index_[i]];
       }
     }
 
@@ -1281,6 +1316,20 @@ void GazeboMavlinkInterface::handle_control(double _dt)
       }
     }
   }
+}
+
+void GazeboMavlinkInterface::handle_actuators(double dt)
+{
+  static int64_t seq = 0;
+  mav_msgs::msgs::CommandMotorThrottle motors;
+
+  motors.set_dt(dt);
+  motors.set_seq(seq++);
+
+  for (int i = 0; i < input_reference_.size(); i++) {
+    motors.add_motor_throttle(constrain((double)input_reference_[i], 0.0, 1.0));
+  }
+  motor_reference_pub_->Publish(motors);
 }
 
 bool GazeboMavlinkInterface::IsRunning()

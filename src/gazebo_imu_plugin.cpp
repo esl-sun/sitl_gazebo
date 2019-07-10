@@ -94,6 +94,12 @@ void GazeboImuPlugin::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf) {
                       imu_parameters_.accelerometer_turn_on_bias_sigma,
                       imu_parameters_.accelerometer_turn_on_bias_sigma);
 
+  if (_sdf->HasElement("imuNoise")) {
+    has_noise = _sdf->GetElement("imuNoise")->Get<bool>();
+  } else {
+    has_noise = true;
+  }
+
   #if GAZEBO_MAJOR_VERSION >= 9
   last_time_ = world_->SimTime();
   #else
@@ -295,7 +301,9 @@ void GazeboImuPlugin::OnUpdate(const common::UpdateInfo& _info) {
                                      angular_vel_I.Y(),
                                      angular_vel_I.Z());
 
-  addNoise(&linear_acceleration_I, &angular_velocity_I, dt);
+  if(has_noise) {
+    addNoise(&linear_acceleration_I, &angular_velocity_I, dt);
+  }
 
   // Copy Eigen::Vector3d to gazebo::msgs::Vector3d
   gazebo::msgs::Vector3d* linear_acceleration = new gazebo::msgs::Vector3d();

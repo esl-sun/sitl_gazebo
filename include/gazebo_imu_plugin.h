@@ -125,6 +125,8 @@ class GazeboImuPlugin : public ModelPlugin {
   std::default_random_engine random_generator_;
   std::normal_distribution<double> standard_normal_distribution_;
 
+  bool has_noise;
+
   // Pointer to the world
   physics::WorldPtr world_;
   // Pointer to the model

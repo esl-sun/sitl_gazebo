@@ -21,7 +21,7 @@ list(APPEND CMAKE_MODULE_PATH /usr/local/share/cmake/Modules)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 option(BUILD_GSTREAMER_PLUGIN "enable gstreamer plugin" OFF)
-option(BUILD_ROS_INTERFACE "Enable building ROS dependent plugins" OFF)
+option(BUILD_ROS_INTERFACE "Enable building ROS dependent plugins" ON)
 
 option(SEND_VISION_ESTIMATION_DATA "Send Mavlink VISION_POSITION_ESTIMATE msgs" OFF)
 option(SEND_ODOMETRY_DATA "Send Mavlink ODOMETRY msgs" OFF)
@@ -252,10 +252,15 @@ glob_generate(models_gen ${CMAKE_CURRENT_SOURCE_DIR}/models/*.jinja)
 set(mav_msgs
   msgs/CommandMotorSpeed.proto
   msgs/MotorSpeed.proto
+  msgs/CommandMotorThrottle.proto
   )
 set(nav_msgs msgs/Odometry.proto)
 set(physics_msgs msgs/Wind.proto)
-set(std_msgs msgs/Int32.proto)
+set(std_msgs
+  msgs/Int32.proto
+  msgs/ConnectGazeboToRosTopic.proto
+  msgs/ConnectRosToGazeboTopic.proto
+  )
 set(sensor_msgs
   msgs/Imu.proto
   msgs/IRLock.proto
@@ -287,6 +292,8 @@ add_library(sensor_msgs SHARED ${SEN_PROTO_SRCS})
 link_libraries(mav_msgs nav_msgs std_msgs sensor_msgs)
 link_libraries(physics_msgs)
 
+add_library(gazebo_forces_moments_actuators_plugin SHARED src/gazebo_forces_moments_actuators_plugin.cpp)
+add_library(gazebo_odometry_plugin SHARED src/gazebo_odometry_plugin.cpp)
 add_library(gazebo_geotagged_images_plugin SHARED src/gazebo_geotagged_images_plugin.cpp)
 add_library(gazebo_gps_plugin SHARED src/gazebo_gps_plugin.cpp)
 add_library(gazebo_irlock_plugin SHARED src/gazebo_irlock_plugin.cpp)
@@ -306,6 +313,8 @@ add_library(gazebo_magnetometer_plugin SHARED src/gazebo_magnetometer_plugin.cpp
 add_library(gazebo_barometer_plugin SHARED src/gazebo_barometer_plugin.cpp)
 
 set(plugins
+  gazebo_forces_moments_actuators_plugin
+  gazebo_odometry_plugin
   gazebo_geotagged_images_plugin
   gazebo_gps_plugin
   gazebo_irlock_plugin
@@ -331,12 +340,19 @@ endforeach()
 target_link_libraries(gazebo_opticalflow_plugin ${OpticalFlow_LIBS})
 
 # If BUILD_ROS_INTERFACE set to ON, build plugins that have ROS dependencies
-# Current plugins that can be used with ROS interface: gazebo_motor_failure_plugin
+# Current plugins that can be used with ROS interface: gazebo_motor_failure_plugin, gazebo_ros_interface_plugin
 if (BUILD_ROS_INTERFACE)
   add_library(gazebo_motor_failure_plugin SHARED src/gazebo_motor_failure_plugin.cpp)
+  add_library(gazebo_ros_interface_plugin SHARED src/gazebo_ros_interface_plugin.cpp)
+
   target_link_libraries(gazebo_motor_failure_plugin ${GAZEBO_libraries} ${roscpp_LIBRARIES})
+  target_link_libraries(gazebo_ros_interface_plugin ${Boost_LIBRARIES} ${GAZEBO_libraries} ${TinyXML_LIBRARIES} ${roscpp_LIBRARIES})
+
   list(APPEND plugins gazebo_motor_failure_plugin)
+  list(APPEND plugins gazebo_ros_interface_plugin)
+
   message(STATUS "adding gazebo_motor_failure_plugin to build")
+  message(STATUS "adding gazebo_ros_interface_plugin to build")
 
   include_directories(
     include
@@ -345,6 +361,11 @@ if (BUILD_ROS_INTERFACE)
   )
 
   target_link_libraries(gazebo_motor_failure_plugin
+    ${catkin_LIBRARIES}
+    ${roscpp_LIBRARIES}
+    ${GAZEBO_libraries}
+  )
+  target_link_libraries(gazebo_ros_interface_plugin
     ${catkin_LIBRARIES}
     ${roscpp_LIBRARIES}
     ${GAZEBO_libraries}

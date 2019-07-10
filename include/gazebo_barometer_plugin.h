@@ -89,6 +89,8 @@ namespace gazebo {
     std::default_random_engine random_generator_;
     std::normal_distribution<double> standard_normal_distribution_;
 
+    bool has_noise;
+
     common::Time last_pub_time_;
     common::Time last_time_;
 

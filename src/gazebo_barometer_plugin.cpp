@@ -86,6 +86,12 @@ void BarometerPlugin::getSdfParams(sdf::ElementPtr sdf)
     baro_topic_ = kDefaultBarometerTopic;
     gzwarn << "[gazebo_barometer_plugin] Using default barometer topic " << baro_topic_ << "\n";
   }
+
+  if (sdf->HasElement("baroNoise")) {
+    has_noise = sdf->GetElement("baroNoise")->Get<bool>();
+  } else {
+    has_noise = true;
+  }
 }
 
 void BarometerPlugin::Load(physics::ModelPtr model, sdf::ElementPtr sdf)
@@ -169,8 +175,11 @@ void BarometerPlugin::OnUpdate(const common::UpdateInfo&)
 
     // Apply 1 Pa RMS noise
     float abs_pressure_noise = 1.0f * (float)y1;
+    if(has_noise) {
+      abs_pressure_noise = 0.0f;
+    }
     absolute_pressure += abs_pressure_noise;
-
+    
     // convert to hPa
     absolute_pressure *= 0.01f;
     baro_msg_.set_absolute_pressure(absolute_pressure);
@@ -178,7 +187,7 @@ void BarometerPlugin::OnUpdate(const common::UpdateInfo&)
     // calculate density using an ISA model for the tropsphere (valid up to 11km above MSL)
     const float density_ratio = powf((temperature_msl/temperature_local) , 4.256f);
     float rho = 1.225f / density_ratio;
-
+    
     // calculate pressure altitude including effect of pressure noise
     baro_msg_.set_pressure_altitude(alt_msl - abs_pressure_noise / (gravity_W_.Length() * rho));
 
