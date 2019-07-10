@@ -37,43 +37,42 @@ brew install homebrew/versions/protobuf260
 
 ## Build Gazebo Plugins (all operating systems)
 
-Clone the gazebo plugins repository to your computer. IMPORTANT: If you do not clone to ~/src/sitl_gazebo, all remaining paths in these instructions will need to be adjusted.
+Clone the gazebo plugins repository to your computer. IMPORTANT: If you do not clone to ~/esl-sun/sitl_gazebo, all remaining paths in these instructions will need to be adjusted.
 
 ```bash
-mkdir -p ~/src
-cd src
-git clone --recursive https://github.com/PX4/sitl_gazebo.git
+mkdir -p ~/esl-sun
+cd esl-sun
+git clone --recursive https://github.com/esl-sun/sitl_gazebo.git
 ```
 
 Create a build folder in the top level of your repository:
 
 ```bash
-mkdir Build
+mkdir build
+```
+
+You need to add the the root location of this repository, e.g. add the following line to your .bashrc (Linux) or .bash_profile (Mac) file:
+```bash
+# Set path to sitl_gazebo repository
+export SITL_GAZEBO_PATH=$HOME/esl-sun/sitl_gazebo
 ```
 
 Next add the location of this build directory to your gazebo plugin path, e.g. add the following line to your .bashrc (Linux) or .bash_profile (Mac) file:
 
-
 ```bash
 # Set the plugin path so Gazebo finds our model and sim
-export GAZEBO_PLUGIN_PATH=${GAZEBO_PLUGIN_PATH}:$HOME/src/sitl_gazebo/Build
+export GAZEBO_PLUGIN_PATH=${GAZEBO_PLUGIN_PATH}:${SITL_GAZEBO_PATH}/build
 # Set the model path so Gazebo finds the airframes
-export GAZEBO_MODEL_PATH=${GAZEBO_MODEL_PATH}:$HOME/src/sitl_gazebo/models
+export GAZEBO_MODEL_PATH=${GAZEBO_MODEL_PATH}:${SITL_GAZEBO_PATH}/models
 # Disable online model lookup since this is quite experimental and unstable
 export GAZEBO_MODEL_DATABASE_URI=""
-```
-
-You also need to add the the root location of this repository, e.g. add the following line to your .bashrc (Linux) or .bash_profile (Mac) file:
-```bash
-# Set path to sitl_gazebo repository
-export SITL_GAZEBO_PATH=$HOME/src/sitl_gazebo
 ```
 
 Navigate into the build directory and invoke CMake from it:
 
 ```bash
-cd ~/src/sitl_gazebo
-cd Build
+cd ~/esl-sun/sitl_gazebo
+cd build
 cmake ..
 ```
 
