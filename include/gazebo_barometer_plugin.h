@@ -61,7 +61,10 @@ namespace gazebo {
 
   static constexpr auto kDefaultBarometerTopic = "/baro";
   static constexpr auto kDefaultPubRate = 10.0;  // [Hz]
-  static constexpr auto kDefaultAltHome = 488.0; // meters
+  // Zurich Irchel Park
+  // static constexpr auto kDefaultAltHome = 488.0; // meters
+  // Helderberg Radio Flyers (HRF)
+  static constexpr auto kDefaultAltHome = 8.0; // meters
 
   class BarometerPlugin : public ModelPlugin {
   public:
