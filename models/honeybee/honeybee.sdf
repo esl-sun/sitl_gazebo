@@ -87,8 +87,8 @@
 
       <!-- Use maxMotorThrust for a linear motor model or motor_models for a complete 3rd order motor model -->
 
-      <maxMotorThrust>6.85</maxMotorThrust>
-      <!--<motor_models>
+      <!--<maxMotorThrust>6.85</maxMotorThrust>-->
+      <motor_models>
         <motor name='motor1'>
           <motor_index>0</motor_index>
           <coeffs>-0.0000000035084590 0.0000162700332387 -0.0172207586741500 4.5281385794990241</coeffs>
@@ -105,7 +105,7 @@
           <motor_index>3</motor_index>
           <coeffs>-0.0000000035084590 0.0000162700332387 -0.0172207586741500 4.5281385794990241</coeffs>
         </motor>
-      </motor_models>-->
+      </motor_models>
     </plugin>
 
     <!-- <plugin name='odometry' filename='libgazebo_odometry_plugin.so'>
