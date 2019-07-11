@@ -6,16 +6,16 @@
         <pose frame=''>0 0 0 0 0 0</pose>
         <mass>0.66</mass>
         <inertia>
-          <ixx>0.001326</ixx>
+          <ixx>9.305e-4</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
-          <iyy>0.00093</iyy>
+          <iyy>1.326e-3</iyy>
           <iyz>0</iyz>
-          <izz>0.00195</izz>
+          <izz>1.95e-3</izz>
         </inertia>
       </inertial>
       <collision name='base_link_inertia_collision'>
-        <pose frame=''>0 0 0 0 0 1.570796</pose>
+        <pose frame=''>0 0 0 0 0 0</pose>
         <geometry>
           <box>
 	      <size>0.3 0.35 0.14</size>
@@ -34,7 +34,7 @@
         </surface>
       </collision>
       <visual name='base_link_inertia_visual'>
-        <pose frame=''>0 0 -0.06 0 0 0</pose>
+        <pose frame=''>0 0 -0.06 0 0 1.570796</pose>
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
@@ -87,8 +87,8 @@
 
       <!-- Use maxMotorThrust for a linear motor model or motor_models for a complete 3rd order motor model -->
 
-      <!-- <maxMotorThrust>6.85</maxMotorThrust> -->
-      <motor_models>
+      <maxMotorThrust>6.85</maxMotorThrust>
+      <!--<motor_models>
         <motor name='motor1'>
           <motor_index>0</motor_index>
           <coeffs>-0.0000000035084590 0.0000162700332387 -0.0172207586741500 4.5281385794990241</coeffs>
@@ -105,7 +105,7 @@
           <motor_index>3</motor_index>
           <coeffs>-0.0000000035084590 0.0000162700332387 -0.0172207586741500 4.5281385794990241</coeffs>
         </motor>
-      </motor_models>
+      </motor_models>-->
     </plugin>
 
     <!-- <plugin name='odometry' filename='libgazebo_odometry_plugin.so'>
