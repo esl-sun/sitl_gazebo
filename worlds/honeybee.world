@@ -12,7 +12,7 @@
     <!-- Quadrotor -->
     <include>
       <uri>model://honeybee</uri>
-      <pose>0 0 0 0 0 1.57</pose>
+      <pose>0 0 0.1 0 0 1.57</pose>
     </include>
 
     <!-- Only one ROS interface plugin is required per world, as any other plugin can connect a Gazebo
@@ -23,7 +23,7 @@
       <gravity>0 0 -9.8066</gravity>
       <ode>
         <solver>
-          <type>quick</type>
+          <type>world</type>
           <iters>10</iters>
           <sor>1.3</sor>
           <use_dynamic_moi_rescaling>0</use_dynamic_moi_rescaling>
