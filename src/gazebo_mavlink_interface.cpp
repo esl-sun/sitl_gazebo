@@ -1060,7 +1060,7 @@ void GazeboMavlinkInterface::VisionCallback(OdomPtr& odom_message) {
         size_t index = 6 * x + y;
 
         odom.pose_covariance[count++] = odom_message->pose_covariance().data()[index];
-        odom.twist_covariance[count++] = odom_message->velocity_covariance().data()[index];
+        odom.velocity_covariance[count++] = odom_message->velocity_covariance().data()[index];
       }
     }
 

@@ -175,7 +175,7 @@ void BarometerPlugin::OnUpdate(const common::UpdateInfo&)
 
     // Apply 1 Pa RMS noise
     float abs_pressure_noise = 1.0f * (float)y1;
-    if(has_noise) {
+    if(!has_noise) {
       abs_pressure_noise = 0.0f;
     }
     absolute_pressure += abs_pressure_noise;
