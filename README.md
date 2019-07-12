@@ -43,6 +43,7 @@ Clone the gazebo plugins repository to your computer. IMPORTANT: If you do not c
 mkdir -p ~/esl-sun
 cd esl-sun
 git clone --recursive https://github.com/esl-sun/sitl_gazebo.git
+cd sitl_gazebo
 ```
 
 Create a build folder in the top level of your repository:
@@ -51,15 +52,11 @@ Create a build folder in the top level of your repository:
 mkdir build
 ```
 
-You need to add the the root location of this repository, e.g. add the following line to your .bashrc (Linux) or .bash_profile (Mac) file:
+Next add the location of this build directory to your gazebo plugin path, e.g. add the following lines to your .bashrc (Linux) or .bash_profile (Mac) file:
+
 ```bash
 # Set path to sitl_gazebo repository
 export SITL_GAZEBO_PATH=$HOME/esl-sun/sitl_gazebo
-```
-
-Next add the location of this build directory to your gazebo plugin path, e.g. add the following line to your .bashrc (Linux) or .bash_profile (Mac) file:
-
-```bash
 # Set the plugin path so Gazebo finds our model and sim
 export GAZEBO_PLUGIN_PATH=${GAZEBO_PLUGIN_PATH}:${SITL_GAZEBO_PATH}/build
 # Set the model path so Gazebo finds the airframes
@@ -67,6 +64,8 @@ export GAZEBO_MODEL_PATH=${GAZEBO_MODEL_PATH}:${SITL_GAZEBO_PATH}/models
 # Disable online model lookup since this is quite experimental and unstable
 export GAZEBO_MODEL_DATABASE_URI=""
 ```
+
+Remember to `source` the file and/or reboot your computer.
 
 Navigate into the build directory and invoke CMake from it:
 
@@ -81,6 +80,29 @@ Now build the gazebo plugins by typing:
 ```bash
 make
 ```
+
+### Build Errors
+
+#### Could NOT find MAVLink
+
+If you receive the following error:
+```
+Could NOT find MAVLink (missing:  MAVLINK_INCLUDE_DIRS) (found version "2.0")
+CMake Error: The following variables are used in this project, but they are set to NOTFOUND.
+Please set them or make sure they are set and tested correctly in the CMake files:
+_MAVLINK_INCLUDE_DIR
+```
+Install the ROS MAVLink node:
+```
+sudo apt-get install ros-<your-ros-distro>-mavlink
+```
+
+#### velocity_covariance / twist_covariance not found
+
+If the build fails due to a line of code referring to the velocity_covariance or twist_covariance not found, do the following:
+
+- If you are using ROS Melodic: Change the variable to twist_covariance
+- If you are using ROS Kinetic: Chnage the variables to velocity_covariance
 
 ### GStreamer Support
 If you want support for the GStreamer camera plugin, make sure to install
