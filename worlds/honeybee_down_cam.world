@@ -8,6 +8,7 @@
     <!-- A ground plane -->
     <include>
       <uri>model://ground_plane</uri>
+      <pose>0 0 -0.01 0 0 0</pose>
     </include>
     <!-- Quadrotor -->
     <include>
@@ -20,6 +21,14 @@
       <name>AR_tag</name>
       <pose>0 0 0 0 0 0</pose>
     </include>
+
+    <plugin name="map" filename="libStaticMapPlugin.so">
+      <center>-33.920620 18.930249</center>
+      <world_size>100</world_size>
+      <map_type>satellite</map_type>
+      <api_key>AIzaSyA3N-ZKUe2QjfnidqHzP_riSB24lIskUJI</api_key>
+      <use_cache>true</use_cache>
+    </plugin>
 
 
 
