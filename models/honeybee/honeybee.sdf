@@ -46,6 +46,7 @@
       <velocity_decay/>
     </link>
 
+    
     <static>0</static>
 
     <plugin name='mavlink_interface' filename='libgazebo_mavlink_interface.so'>
@@ -56,7 +57,7 @@
       <baroSubTopic>/baro</baroSubTopic>
       <motorCommandPubTopic>/command/motor</motorCommandPubTopic>
 
-      <noise>true</noise>
+      <noise>false</noise>
 
       <mavlink_addr>INADDR_ANY</mavlink_addr>
       <mavlink_tcp_port>4560</mavlink_tcp_port>
@@ -67,7 +68,7 @@
       <serialEnabled>false</serialEnabled>
       <hil_state_level>false</hil_state_level>
       <qgc_addr>INADDR_ANY</qgc_addr>
-      <qgc_udp_port>14550</qgc_udp_port>
+      <qgc_udp_port>14590</qgc_udp_port>
       <mavlink_udp_port>14560</mavlink_udp_port>
       <serialDevice>/dev/ttyACM0</serialDevice>
       <baudRate>921600</baudRate>
@@ -115,7 +116,7 @@
 
     <plugin name="gps_plugin" filename="libgazebo_gps_plugin.so">
         <robotNamespace></robotNamespace>
-        <gpsNoise>true</gpsNoise>
+        <gpsNoise>false</gpsNoise>
     </plugin>
 
     <plugin name='magnetometer_plugin' filename='libgazebo_magnetometer_plugin.so'>
@@ -125,14 +126,14 @@
       <randomWalk>6.4e-06</randomWalk>
       <biasCorrelationTime>600</biasCorrelationTime>
       <magTopic>/mag</magTopic>
-      <magNoise>true</magNoise>
+      <magNoise>false</magNoise>
     </plugin>
 
     <plugin name='barometer_plugin' filename='libgazebo_barometer_plugin.so'>
       <robotNamespace/>
       <pubRate>10</pubRate>
       <baroTopic>/baro</baroTopic>
-      <baroNoise>true</baroNoise>
+      <baroNoise>false</baroNoise>
     </plugin>
 
     <plugin name='gazebo_imu_plugin' filename='libgazebo_imu_plugin.so'>
@@ -147,7 +148,9 @@
       <accelerometerRandomWalk>0.006</accelerometerRandomWalk>
       <accelerometerBiasCorrelationTime>300.0</accelerometerBiasCorrelationTime>
       <accelerometerTurnOnBiasSigma>0.196</accelerometerTurnOnBiasSigma>
-      <imuNoise>true</imuNoise>
+      <imuNoise>false</imuNoise>
     </plugin>
+
+
   </model>
 </sdf>
